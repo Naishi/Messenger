@@ -8,5 +8,6 @@ public static class ServicesExtension
     public static void AddMessengerServices(this IServiceCollection services)
     {
         services.AddTransient<ChatService>();
+        services.AddTransient<AuthService>();
     }
 }

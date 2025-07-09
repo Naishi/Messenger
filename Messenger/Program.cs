@@ -18,7 +18,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDomainServices(builder.Configuration);
 builder.Services.AddMessengerServices();
-builder.Services.AddAutoMapper(typeof(MappingProfile), typeof(MappingDomainProfile));
+builder.Services.AddAutoMapper(typeof(MappingProfile), typeof(MappingModelEntity));
 
 var app = builder.Build();
 
