@@ -1,54 +1,94 @@
 using AutoMapper;
+using Messenger.Domain.Entities;
+using Messenger.Domain.Interfaces;
+using Messenger.Service.Exceptions;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
+using Messenger.Service.Models.Enums;
+using Messenger.Service.Settings;
 using Microsoft.AspNetCore.Identity;
-using Messenger.Domain.Entities;
-using Messenger.Domain.Repositories;
-using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace Messenger.Service.Services;
 
-public class AuthService(IConfiguration configuration) : IAuthService
+public class AuthService : IAuthService
 {
-    private UserAuthRepository _user;
-    private IMapper _mapper;
-    public async Task<UserAuthModel?> RegisterAsync(UserAuthModel modelFromRequest)
-    {
-        var authEntity = _mapper.Map<UserAuthEntity>(modelFromRequest);
-        if (await _user.GetUserByEmailAsync(authEntity)!= null)
-        {
-            return null;
-        }
+    private readonly IUserAuthRepository _userAuthRepository;
+    private readonly IMapper _mapper;
+    private readonly IPasswordHasher<UserAuthEntity> _passwordHasher;
+    private readonly JwtSettings _jwtSettings;
 
-        var userAuthModel =  new UserAuthModel();
-        var hashedPassword = new PasswordHasher<UserAuthModel>()
-            .HashPassword(userAuthModel,  modelFromRequest.PasswordHash);
-        userAuthModel.Email = modelFromRequest.Email;
-        userAuthModel.PasswordHash = hashedPassword;
-        var userAuthEntity = _mapper.Map<UserAuthEntity>(userAuthModel);
-        await _user.RegisterUserAsync(userAuthEntity);
-        return userAuthModel;
+    public AuthService(IUserAuthRepository user,
+        IMapper mapper,
+        IPasswordHasher<UserAuthEntity> passwordHasher,
+        JwtSettings jwtSettings)
+    {
+        _userAuthRepository = user;
+        _mapper = mapper;
+        _passwordHasher = passwordHasher;
+        _jwtSettings = jwtSettings;
     }
 
-    /// <summary>
-    /// userMapEntity = UserAuth(modelFromRequest)
-    /// userData = get auth from data(can be null)
-    /// userMapModel = get a model for hasher in "if"
-    /// </summary>
-    
-    public async Task<string> LoginAsync(UserAuthModel modelFromRequest)
+    public async Task RegisterAsync(UserRegisterModel model)
     {
-        var userMapEntity = _mapper.Map<UserAuthEntity>(modelFromRequest);
-        var userData = await _user.GetUserByEmailAsync(userMapEntity);
-        var userMapModel = _mapper.Map<UserAuthModel>(userData);
-        
-        if (userData == null ||
-            new PasswordHasher<UserAuthModel>().VerifyHashedPassword(userMapModel, userData.PasswordHash, modelFromRequest.Password) 
-            == PasswordVerificationResult.Failed)
+        if (model.Role == UserRole.None)
         {
-            return "Email or password is incorrect";
+            throw new UndefinedUserRoleException();
         }
-        return "success";
+
+        if (await _userAuthRepository.GetUserByEmailAsync(model.Email) != null)
+        {
+            throw new ExistedUserException();
+        }
+
+        var entity = _mapper.Map<UserAuthEntity>(model);
+        entity.PasswordHash = _passwordHasher.HashPassword(entity, model.Password);
+
+        await _userAuthRepository.RegisterUserAsync(entity);
     }
-    
+
+    public async Task<string> LoginAsync(UserLoginModel model)
+    {
+        var entity = await _userAuthRepository.GetUserByEmailAsync(model.Email);
+        if (entity == null)
+        {
+            throw new UserNotFoundException();
+        }
+
+        var result = _passwordHasher.VerifyHashedPassword(entity, entity.PasswordHash, model.Password);
+
+        if (result == PasswordVerificationResult.Failed)
+        {
+            throw new UserLoginException();
+        }
+
+        entity = await _userAuthRepository.GetUserByEmailAsync(model.Email);
+        var userInfo = _mapper.Map<UserAuthModel>(entity);
+        return CreateToken(userInfo);
+    }
+
+    private string CreateToken(UserAuthModel user)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role.ToString())
+        };
+
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_jwtSettings.Token));
+
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
+        var tokenDescriptor = new JwtSecurityToken(
+            issuer: _jwtSettings.Issuer,
+            audience: _jwtSettings.Audience,
+            claims: claims,
+            expires: DateTime.Now.AddHours(1),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
+    }
 }

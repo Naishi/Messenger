@@ -1,59 +1,62 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using AutoMapper;
 using Messenger.Dtos;
+using Messenger.Service.Exceptions;
+using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
-using Microsoft.AspNetCore.Identity;
+using Messenger.Service.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
-using Messenger.Domain;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Messenger.Controllers;
 
-
-[Route("api/authorise")]
+[Route("api/auth")]
 [ApiController]
-public class AuthorisationController(IConfiguration configuration) : Controller
+public class AuthController : Controller
 {
-    public UserAuthModel user = new ();
-    [HttpPost("register")]
-    public ActionResult Register([FromBody]UserAuthDto request)
+    private readonly IAuthService _authService;
+    private readonly IMapper _mapper;
+
+    public AuthController(IAuthService authService, IMapper mapper)
     {
-        var hashedPassword = new PasswordHasher<UserAuthModel>()
-            .HashPassword(user,  request.Password);
-        return Ok();
+        _authService = authService;
+        _mapper = mapper;
+    }
+
+    [HttpPost("register")]
+    public async Task<ActionResult> Register([FromBody]UserAuthDto request)
+    {
+        try
+        {
+            var model = _mapper.Map<UserRegisterModel>(request);
+            model.Role = UserRole.Client;
+            await _authService.RegisterAsync(model);
+            return Created();
+        }
+        catch (UndefinedUserRoleException)
+        {
+            return Conflict();
+        }
+        catch (ExistedUserException)
+        {
+            return Conflict();
+        }
     }
 
     [HttpPost("login")]
-    public ActionResult<string> Login([FromBody]UserAuthDto request)
+    public async Task<ActionResult<string>> Login([FromBody]UserAuthDto request)
     {
-        
-
-        string token = CreateToken(user);
-        return Ok(token);
-    }
-
-    private string CreateToken(UserAuthModel user)
-    {
-        var claims = new List<Claim>
+        try
         {
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
-        };
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(configuration.GetValue<string>("Jwt:Token")));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
-        var tokenDescriptor = new JwtSecurityToken(
-            issuer: configuration.GetValue<string>("Jwt:Issuer"),
-            audience: configuration.GetValue<string>("Jwt:Audience"),
-            claims: claims,
-            expires: DateTime.Now.AddHours(1),
-            signingCredentials: creds);
-        return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
-    }
-
-    public ActionResult AddUser()
-    {
-        return View();
+            var model = _mapper.Map<UserLoginModel>(request);
+            var token = await _authService.LoginAsync(model);
+            return Ok(token);
+        }
+        catch (UserNotFoundException)
+        {
+            return Conflict();
+        }
+        catch (UserLoginException)
+        {
+            return Conflict();
+        }
     }
 }

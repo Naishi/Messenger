@@ -1,11 +1,8 @@
 using Messenger;
 using Messenger.Domain;
 using Messenger.Service;
-using Messenger.Domain.Data;
-using Messenger.Domain.Entities;
-using Messenger.Domain.Repositories;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using Messenger.Service.Settings;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,11 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton(resolver =>
+    resolver.GetRequiredService<IOptions<JwtSettings>>().Value);
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDomainServices(builder.Configuration);
 builder.Services.AddMessengerServices();
-builder.Services.AddAutoMapper(typeof(MappingProfile), typeof(MappingModelEntity));
+builder.Services.AddAutoMapper(typeof(MappingProfile), typeof(ServiceMappingProfile));
 
 var app = builder.Build();
 

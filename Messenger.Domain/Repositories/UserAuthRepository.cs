@@ -1,10 +1,11 @@
 using Messenger.Domain.Data;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace Messenger.Domain.Repositories;
 
-public class UserAuthRepository
+public class UserAuthRepository : IUserAuthRepository
 {
     private readonly DataContext _context;
 
@@ -12,39 +13,18 @@ public class UserAuthRepository
     {
         _context = context;
     }
-    
-    /// <summary>
-    /// user = userAuth obj from request body or from auth service for registration
-    /// using in login method for validate data
-    /// </summary>
 
-    public async Task<UserAuthEntity?> GetUserByEmailAsync(UserAuthEntity user)
+    public async Task<UserAuthEntity?> GetUserByEmailAsync(string email)
     {
-        var userAuth = await _context.UserAuth.AnyAsync
-            (u => u.Email == user.Email);
-        if (userAuth)
-        {
-            return await _context.UserAuth.FirstOrDefaultAsync(u => u.Email == user.Email);
-        }
-        return null;
+        return await _context.UserAuth.FirstOrDefaultAsync(u => u.Email == email);
     }
     
-    
-    
-    /// <summary>
-    /// userAuth obj from request body or from auth service for registration
-    /// 
-    /// </summary>
-
-    public async Task<UserAuthEntity?> RegisterUserAsync(UserAuthEntity user)
+    public async Task RegisterUserAsync(UserAuthEntity user)
     {
-        if (await _context.UserAuth.AnyAsync
-                (u => u.Email == user.Email))
+        if (!await _context.UserAuth.AnyAsync(u => u.Email == user.Email))
         {
-            return null;
+            await _context.UserAuth.AddAsync(user);
+            await _context.SaveChangesAsync();
         }
-        await _context.UserAuth.AddAsync(user);
-        await _context.SaveChangesAsync();
-        return user;
     }
 }
