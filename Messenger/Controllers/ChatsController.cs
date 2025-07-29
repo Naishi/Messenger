@@ -1,6 +1,5 @@
 ﻿using Messenger.Dtos.ChatDtos;
-using Messenger.Service.Services;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Messenger.Controllers;
@@ -16,9 +15,16 @@ public class ChatsController : Controller
     }
 
     [HttpGet]
-    public ActionResult GetAllChats(int userId)
+    public ActionResult GetAllChats([FromQuery]int userId)
     {
-        throw new NotImplementedException();
+        return Ok("list ur chats");
+    }
+
+    [Authorize]
+    [HttpGet("test")]
+    public ActionResult<string> TestChat()
+    {
+        return Ok("u was authorize");
     }
 
     [HttpGet("Search")]

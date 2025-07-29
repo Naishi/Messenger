@@ -4,6 +4,7 @@ namespace Messenger.Service.Interfaces;
 
 public interface IAuthService
 {
-    Task RegisterAsync(UserRegisterModel model);
-    Task<string> LoginAsync(UserLoginModel model);
+    Task RegisterAsync(UserAuthRegisterModel authModel, UserModel user);
+    Task<TokenResponseModel?> LoginAsync(UserAuthLoginModel model);
+    Task<TokenResponseModel?> RefreshTokenAsync (RefreshTokenRequestModel model);
 }

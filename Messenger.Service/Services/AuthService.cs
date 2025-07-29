@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Messenger.Service.Services;
@@ -32,27 +33,34 @@ public class AuthService : IAuthService
         _jwtSettings = jwtSettings;
     }
 
-    public async Task RegisterAsync(UserRegisterModel model)
+    public async Task RegisterAsync(UserAuthRegisterModel authModel, UserModel userModel)
     {
-        if (model.Role == UserRole.None)
+        if (authModel.Role == UserRole.None)
         {
             throw new UndefinedUserRoleException();
         }
 
-        if (await _userAuthRepository.GetUserByEmailAsync(model.Email) != null)
+        if (await _userAuthRepository.GetUserAsync(authModel.Email) != null)
         {
             throw new ExistedUserException();
         }
 
-        var entity = _mapper.Map<UserAuthEntity>(model);
-        entity.PasswordHash = _passwordHasher.HashPassword(entity, model.Password);
+        if (userModel.Birthday == DateOnly.FromDateTime(DateTime.Now))
+        {
+            throw new BirthDateException();
+        }
 
-        await _userAuthRepository.RegisterUserAsync(entity);
+        var authEntity = _mapper.Map<UserAuthEntity>(authModel);
+        authEntity.PasswordHash = _passwordHasher.HashPassword(authEntity, authModel.Password);
+        
+        var userEntity = _mapper.Map<UserEntity>(userModel);
+
+        await _userAuthRepository.RegisterUserAsync(authEntity,userEntity);
     }
 
-    public async Task<string> LoginAsync(UserLoginModel model)
+    public async Task<TokenResponseModel?> LoginAsync(UserAuthLoginModel model)
     {
-        var entity = await _userAuthRepository.GetUserByEmailAsync(model.Email);
+        var entity = await _userAuthRepository.GetUserAsync(model.Email);
         if (entity == null)
         {
             throw new UserNotFoundException();
@@ -64,13 +72,40 @@ public class AuthService : IAuthService
         {
             throw new UserLoginException();
         }
-
-        entity = await _userAuthRepository.GetUserByEmailAsync(model.Email);
-        var userInfo = _mapper.Map<UserAuthModel>(entity);
-        return CreateToken(userInfo);
+        
+        return await CreateTokenResponse(entity);
     }
 
-    private string CreateToken(UserAuthModel user)
+    private async Task<TokenResponseModel> CreateTokenResponse( UserAuthEntity entity)
+    {
+        var response = new TokenResponseModel()
+        {
+            AccessToken = CreateToken(entity),
+            RefreshToken = await GenerateAndSaveRefreshToken(entity)
+        };
+        return response;
+    }
+
+    public async Task<TokenResponseModel?> RefreshTokenAsync(RefreshTokenRequestModel model)
+    {
+        var user = await ValidateRefreshTokenAsync(model);
+        if(user is null)
+            return null;
+        return await CreateTokenResponse(user);
+    }
+
+    private async Task<UserAuthEntity?> ValidateRefreshTokenAsync(RefreshTokenRequestModel model)
+    {
+        var user = await _userAuthRepository.GetUserAsync(model.Id);
+        if (user is null || user.RefreshToken != model.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+        {
+            return null;
+        }
+
+        return user;
+    }
+
+    private string CreateToken(UserAuthEntity user)
     {
         var claims = new List<Claim>
         {
@@ -91,4 +126,23 @@ public class AuthService : IAuthService
 
         return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
     }
+
+    private string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[32];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
+    }
+
+    private async Task<string> GenerateAndSaveRefreshToken(UserAuthEntity userAuth)
+    {
+        var refreshToken = GenerateRefreshToken();
+        
+        userAuth!.RefreshToken = refreshToken;
+        userAuth.RefreshTokenExpiryTime = DateTime.UtcNow.AddHours(1);
+        await _userAuthRepository.SaveRefreshTokenAsync();
+        return refreshToken;
+    }
+    
 }

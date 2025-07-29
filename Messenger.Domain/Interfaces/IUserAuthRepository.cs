@@ -4,7 +4,9 @@ namespace Messenger.Domain.Interfaces
 {
     public interface IUserAuthRepository
     {
-        Task<UserAuthEntity?> GetUserByEmailAsync(string email);
-        Task RegisterUserAsync(UserAuthEntity user);
+        Task<UserAuthEntity?> GetUserAsync(string email);
+        Task<UserAuthEntity?> GetUserAsync(int id);
+        Task RegisterUserAsync(UserAuthEntity userAuth, UserEntity user);
+        Task SaveRefreshTokenAsync();
     }
 }

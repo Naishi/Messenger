@@ -112,10 +112,13 @@ namespace Messenger.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateOnly>("Birthday")
+                    b.Property<DateOnly?>("Birthday")
                         .HasColumnType("date");
 
                     b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -124,11 +127,6 @@ namespace Messenger.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("NickName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");

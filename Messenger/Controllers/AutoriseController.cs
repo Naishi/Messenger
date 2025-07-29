@@ -1,5 +1,6 @@
 using AutoMapper;
 using Messenger.Dtos;
+using Messenger.Dtos.UserDtos;
 using Messenger.Service.Exceptions;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
@@ -22,13 +23,14 @@ public class AuthController : Controller
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult> Register([FromBody]UserAuthDto request)
+    public async Task<ActionResult> Register([FromBody]RegisterRequest request)
     {
         try
         {
-            var model = _mapper.Map<UserRegisterModel>(request);
-            model.Role = UserRole.Client;
-            await _authService.RegisterAsync(model);
+            var authModel = _mapper.Map<UserAuthRegisterModel>(request);
+            authModel.Role = UserRole.Client;
+            var userModel = _mapper.Map<UserModel>(request);
+            await _authService.RegisterAsync(authModel, userModel);
             return Created();
         }
         catch (UndefinedUserRoleException)
@@ -39,16 +41,20 @@ public class AuthController : Controller
         {
             return Conflict();
         }
+        catch (BirthDateException)
+        {
+            return BadRequest("Need real birthday");
+        }
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<string>> Login([FromBody]UserAuthDto request)
+    public async Task<ActionResult<TokenResponseModel>> Login([FromBody]UserAuthDto request)
     {
         try
         {
-            var model = _mapper.Map<UserLoginModel>(request);
-            var token = await _authService.LoginAsync(model);
-            return Ok(token);
+            var model = _mapper.Map<UserAuthLoginModel>(request);
+            var tokenResponseModel = await _authService.LoginAsync(model);
+            return Ok(tokenResponseModel);
         }
         catch (UserNotFoundException)
         {
@@ -58,5 +64,14 @@ public class AuthController : Controller
         {
             return Conflict();
         }
+    }
+
+    [HttpPost("refresh")]
+    public async Task<ActionResult<TokenResponseModel>> RefreshToken([FromBody] RefreshTokenRequestModel request)
+    {
+        var result = await _authService.RefreshTokenAsync(request);
+        if(result?.AccessToken is null || result?.RefreshToken is null)
+            return Unauthorized("Invalid token");
+        return Ok(result);
     }
 }

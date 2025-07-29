@@ -14,16 +14,19 @@ public class UserRepository
         _context = context;
     }
 
-    public void AddUser(UserEntity user)
+    public async Task AddUser(UserEntity user)
     {
-        _context.Users.Add(user);
-        _context.SaveChanges();
+        if (!await _context.Users.AnyAsync(u => u.Email == user.Email))
+        {
+            await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+        }
     }
 
-    public void DeleteUser(UserEntity user)
+    public async Task DeleteUser(UserEntity user)
     {
-        _context.Users.Remove(user);
-        _context.SaveChanges();
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
     }
 
     public void UpdateUserInfo(UserEntity user)

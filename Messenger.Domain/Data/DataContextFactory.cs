@@ -9,7 +9,8 @@ namespace Messenger.Domain.Data
         public DataContext CreateDbContext(string[] args)
         {
             var config = new ConfigurationBuilder()
-                .AddUserSecrets<DataContextFactory>()
+                .SetBasePath(Directory.GetCurrentDirectory()) // важно для поиска файла конфигурации
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .Build();
 
             var connectionString = config.GetConnectionString("DefaultConnection");
