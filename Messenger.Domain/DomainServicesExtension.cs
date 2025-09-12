@@ -13,8 +13,9 @@ public static class DomainServicesExtension
     public static void AddDomainServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddTransient<ChatRepository>();
-        services.AddTransient<UserRepository>();
+        services.AddTransient<IUserRepository, UserRepository>();
         services.AddTransient<IUserAuthRepository, UserAuthRepository>();
+        
 
         services.AddDbContext<DataContext>(options =>
         {

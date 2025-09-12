@@ -8,9 +8,9 @@ namespace Messenger.Domain.Repositories;
 public class UserAuthRepository : IUserAuthRepository
 {
     private readonly DataContext _context;
-    private readonly UserRepository _userRepository;
+    private readonly IUserRepository _userRepository;
 
-    public UserAuthRepository(DataContext context, UserRepository userRepository)
+    public UserAuthRepository(DataContext context, IUserRepository userRepository)
     {
         _context = context;
         _userRepository = userRepository;
@@ -26,15 +26,30 @@ public class UserAuthRepository : IUserAuthRepository
         return await _context.UserAuth.FindAsync(id);
     }
 
-    public async Task RegisterUserAsync(UserAuthEntity userAuth, UserEntity user)
+    public async Task<bool> RegisterUserAsync(UserAuthEntity userAuth, UserEntity user)
     {
-        if (!await _context.UserAuth.AnyAsync(u => u.Email == userAuth.Email) 
-            && !await _context.Users.AnyAsync((u => u.NickName == user.NickName)))
+        if (!await _context.UserAuth.AnyAsync(u => u.Email == userAuth.Email)
+            && await IsNickUniqueAsync(user.NickName))
         {
             await _context.UserAuth.AddAsync(userAuth);
-            await _userRepository.AddUser(user);
+            if(!await _userRepository.AddUserAsync(user))
+            {
+                return false;
+            }
             await _context.SaveChangesAsync();
+            return true;
         }
+        return false;
+    }
+
+    private async Task<bool> IsNickUniqueAsync(string nickName)
+    {
+        if(string.IsNullOrWhiteSpace(nickName))
+        {
+            return true;
+        }
+        var exist =  await _context.Users.AnyAsync(u => u.NickName == nickName);
+        return !exist;
     }
 
     public async Task SaveRefreshTokenAsync()

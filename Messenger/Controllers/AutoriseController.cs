@@ -25,12 +25,17 @@ public class AuthController : Controller
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody]RegisterRequest request)
     {
+        if(!ModelState.IsValid)
+            return BadRequest(ModelState);
         try
         {
             var authModel = _mapper.Map<UserAuthRegisterModel>(request);
             authModel.Role = UserRole.Client;
             var userModel = _mapper.Map<UserModel>(request);
-            await _authService.RegisterAsync(authModel, userModel);
+            if(!await _authService.RegisterAsync(authModel, userModel))
+            {
+                return BadRequest("не удалось зарегистрировать пользователя");
+            }
             return Created();
         }
         catch (UndefinedUserRoleException)
@@ -44,6 +49,10 @@ public class AuthController : Controller
         catch (BirthDateException)
         {
             return BadRequest("Need real birthday");
+        }
+        catch (InvalidEmailException)
+        {
+            return BadRequest("Need real email");
         }
     }
 

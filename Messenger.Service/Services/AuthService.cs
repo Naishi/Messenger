@@ -21,20 +21,28 @@ public class AuthService : IAuthService
     private readonly IMapper _mapper;
     private readonly IPasswordHasher<UserAuthEntity> _passwordHasher;
     private readonly JwtSettings _jwtSettings;
+    private readonly IEmailValidator _emailValidator;
 
     public AuthService(IUserAuthRepository user,
         IMapper mapper,
         IPasswordHasher<UserAuthEntity> passwordHasher,
-        JwtSettings jwtSettings)
+        JwtSettings jwtSettings, IEmailValidator emailValidator)
     {
         _userAuthRepository = user;
         _mapper = mapper;
         _passwordHasher = passwordHasher;
         _jwtSettings = jwtSettings;
+        _emailValidator = emailValidator;
     }
+    
 
-    public async Task RegisterAsync(UserAuthRegisterModel authModel, UserModel userModel)
+    public async Task<bool> RegisterAsync(UserAuthRegisterModel authModel, UserModel userModel)
     {
+        if (!await _emailValidator.IsEmailValidAndExistAsync(authModel.Email))
+        {
+            throw new InvalidEmailException();
+        }
+        
         if (authModel.Role == UserRole.None)
         {
             throw new UndefinedUserRoleException();
@@ -55,7 +63,7 @@ public class AuthService : IAuthService
         
         var userEntity = _mapper.Map<UserEntity>(userModel);
 
-        await _userAuthRepository.RegisterUserAsync(authEntity,userEntity);
+        return await _userAuthRepository.RegisterUserAsync(authEntity,userEntity);
     }
 
     public async Task<TokenResponseModel?> LoginAsync(UserAuthLoginModel model)
@@ -144,5 +152,4 @@ public class AuthService : IAuthService
         await _userAuthRepository.SaveRefreshTokenAsync();
         return refreshToken;
     }
-    
 }

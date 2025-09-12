@@ -6,7 +6,7 @@ namespace Messenger.Domain.Interfaces
     {
         Task<UserAuthEntity?> GetUserAsync(string email);
         Task<UserAuthEntity?> GetUserAsync(int id);
-        Task RegisterUserAsync(UserAuthEntity userAuth, UserEntity user);
+        Task<bool> RegisterUserAsync(UserAuthEntity userAuth, UserEntity user);
         Task SaveRefreshTokenAsync();
     }
 }

@@ -34,5 +34,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Password, opt => opt.MapFrom(src => src.Password))
             .ForMember(dest => dest.Role, opt => opt.Ignore())
             .ReverseMap();
+        CreateMap<UserInfoDto, UserModel>().ReverseMap();
+        CreateMap<UserChangingInfoDto, UserModel>().ReverseMap();
     }
 }
