@@ -17,6 +17,7 @@ public static class DomainServicesExtension
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthRepository, UserAuthRepository>();
         services.AddScoped<IUserChatRepository, UserChatRepository>();
+        services.AddScoped<IMessageRepository, MessageRepository>();
 
 
         services.AddDbContext<DataContext>(options =>

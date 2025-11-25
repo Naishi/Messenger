@@ -13,4 +13,6 @@ public interface IChatRepository
     Task<List<UserChatEntity>> GetAllChatsAsync(int userId);
 
     Task<List<SearchChatEntity>> SearchChatByCriteriaAsync(int currentUserId, string searchTerm);
+
+    Task UpdateLastMessageTime(int chatId);
 }

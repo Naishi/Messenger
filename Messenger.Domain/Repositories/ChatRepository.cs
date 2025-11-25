@@ -95,4 +95,16 @@ public class ChatRepository : IChatRepository
 
         return results;
     }
+
+    public async Task UpdateLastMessageTime(int chatId)
+    {
+        var  chat = await _context.Chats.FindAsync(chatId);
+
+        if (chat != null)
+        {
+            chat.LastMessageDate = DateTime.UtcNow;
+        }
+        
+        await _context.SaveChangesAsync();
+    }
 }

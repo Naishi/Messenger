@@ -2,6 +2,7 @@ using AutoMapper;
 
 using Messenger.Dtos;
 using Messenger.Dtos.ChatDtos;
+using Messenger.Dtos.MessageDtos;
 using Messenger.Dtos.UserDtos;
 using Messenger.Service.Models;
 using Messenger.Service.Models.Enums;
@@ -37,5 +38,6 @@ public class MappingProfile : Profile
             .ReverseMap();
         CreateMap<UserInfoDto, UserModel>().ReverseMap();
         CreateMap<UserChangingInfoDto, UserModel>().ReverseMap();
+        CreateMap<CreateMessageDto, MessageModel>().ReverseMap();
     }
 }

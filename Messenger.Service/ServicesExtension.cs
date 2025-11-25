@@ -22,5 +22,6 @@ public static class ServicesExtension
         services.AddScoped<IEmailValidator, EmailValidator>();
         services.AddScoped<IProfanityFilter, ProfanityFilter.ProfanityFilter>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IMessageService, MessageService>();
     }
 }

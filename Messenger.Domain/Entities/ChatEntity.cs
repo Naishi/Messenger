@@ -16,4 +16,5 @@ public class ChatEntity
 
     public required ICollection<UserChatEntity> UserChats { get; set; } = new List<UserChatEntity>();
     public ICollection<MessageEntity>? Messages { get; set; }
+    public DateTime LastMessageDate { get; set; }
 }

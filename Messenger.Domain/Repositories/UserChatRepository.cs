@@ -18,6 +18,7 @@ public class UserChatRepository : IUserChatRepository
     public async Task<UserChatEntity?> GetUserChatAsync(int userId, int chatId)
     {
         var userChatEntity = await _context.UserChats.FirstOrDefaultAsync();
+
         return userChatEntity ?? null;
     }
 
@@ -45,7 +46,7 @@ public class UserChatRepository : IUserChatRepository
         return await _context.UserChats
             .GroupBy(uc => uc.ChatId)
             .AnyAsync(g => g.Any(uc => uc.UserId == userId1
-                && g.Any(uc => uc.UserId == userId2)));
+                && g.Any(uc2 => uc2.UserId == userId2)));
     }
 
     public async Task<List<ChatEntity>> GetChatsByUserIdAsync(int userId)
@@ -54,6 +55,7 @@ public class UserChatRepository : IUserChatRepository
             .Where(uc => uc.UserId == userId)
             .Select(uc => uc.Chat)
             .ToListAsync();
+
         return chats;
     }
 
@@ -65,12 +67,17 @@ public class UserChatRepository : IUserChatRepository
 
     public async Task<List<UserEntity>?> GetUsersByChatIdAsync(int chatId)
     {
-        var users = await _context.UserChats.Where(uc => uc.ChatId == chatId).Include(uc => uc.User).Select(uc => uc.User).ToListAsync();
+        var users = await _context.UserChats
+            .Where(uc => uc.ChatId == chatId)
+            .Include(uc => uc.User)
+            .Select(uc => uc.User)
+            .ToListAsync();
 
         if (users.Count == 0)
         {
             return null;
         }
+
         return users;
     }
 }

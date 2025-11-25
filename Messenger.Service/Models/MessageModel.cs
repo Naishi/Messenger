@@ -2,12 +2,15 @@
 
 public class MessageModel
 {
-    public int Id {  get; set; }
-    public UserModel User {  get; set; } = null!;
-    public ChatModel Chat {  get; set; } = null!;
+
+    public int UserId { get; set; }
+
+    public int ChatId { get; set; }
+    public string AuthorName { get; set; }
     public required string Text { get; set; }
+
     public DateTime CreatedDate { get; set; }
-    public DateTime ModifiedDate { get; set; }
+
     //public int NumberOfViews { get; set; }
     public bool IsPinned { get; set; }
 }
