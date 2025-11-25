@@ -1,4 +1,10 @@
-﻿using Messenger.Dtos.ChatDtos;
+﻿using System.Security.Claims;
+
+using Messenger.Dtos.ChatDtos;
+using Messenger.Service.Exceptions;
+using Messenger.Service.Models;
+using Messenger.Service.Services;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,25 +14,63 @@ namespace Messenger.Controllers;
 [ApiController]
 public class ChatsController : Controller
 {
-    [HttpPost]
-    public ActionResult CreateChat(CreateChatDto createChat)
-    {
-        throw new NotImplementedException();
-    }
+    private readonly IChatService _chatService;
 
-    [HttpGet]
-    public ActionResult GetAllChats([FromQuery]int userId)
+    public ChatsController(IChatService chatService)
     {
-        return Ok("list ur chats");
+        _chatService = chatService;
     }
 
     [Authorize]
-    [HttpGet("test")]
-    public ActionResult<string> TestChat()
+    [HttpPost("addChats")]
+    public async Task<ActionResult> CreateChat(CreateChatDto createChat)
     {
-        return Ok("u was authorize");
-    }
+        try
+        {
+            var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var chatModel = new ChatModel()
+            {
+                Name = createChat.ChatName,
+                CreatedDate = DateOnly.FromDateTime(DateTime.Today)
+            };
 
+            if (string.IsNullOrWhiteSpace(ownerUserId) || !int.TryParse(ownerUserId, out var ownerId))
+            {
+                return Unauthorized("invalid or missing user identifier");
+            }
+
+            var usersList = new List<int>
+            {
+                ownerId, createChat.InvitedUserId
+            };
+
+            await _chatService.AddChatAsync(chatModel, usersList);
+
+            return Ok("Chat created successfully");
+        }
+        catch (ArgumentException)
+        {
+            return BadRequest();
+        }
+        catch (UserNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (ExistedChatException)
+        {
+            return Conflict();
+        }
+        catch (ForbiddenOperationExceprion)
+        {
+            return Forbid();
+        }
+        catch (ChatNameExistedException)
+        {
+            return Conflict();
+        }
+    }
+    
+    [Authorize]
     [HttpGet("Search")]
     //уточнение должно быть сравнение по совпадениям через базу
     public ActionResult SearchChat([FromQuery] string contactName)
@@ -34,30 +78,62 @@ public class ChatsController : Controller
         throw new NotImplementedException();
     }
 
-    [HttpPatch]
-    public ActionResult ChangeChat(ChangeChatDto changeChat)
+    [Authorize]
+    [HttpGet("SearchByCriteria")]
+    public async Task<ActionResult<SearchChatDto>> SearchByCriteria([FromQuery] string contactName)
     {
-        if (changeChat.Id == 0)
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (int.TryParse(ownerId, out var id))
+        {
+            return Ok(await _chatService.SearchChatsByCriteriaAsync(contactName, id));
+        }
+        else
+        {
+            return Unauthorized("invalid or missing user identifier");
+        }
+    }
+    
+    [Authorize]
+    [HttpDelete("DeleteChat")]
+    public async Task<ActionResult> DeleteChat(int chatId)
+    {
+        try
+        {
+            var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (chatId <= 0)
+            {
+                return BadRequest();
+            }
+
+            if (int.TryParse(ownerUserId, out var ownerId))
+            {
+                await _chatService.DeleteChatAsync(chatId, ownerId);
+                return Ok("Chat deleted successfully");
+            } 
+            return Unauthorized();
+        }
+        catch (ChatNotFoundException)
         {
             return BadRequest();
         }
-
-        if (changeChat.Name == null && changeChat.IsPublic == null && changeChat.Description == null)
+        catch (UserNotFoundException)
         {
-            return BadRequest();
+            return NotFound();
         }
-
-        throw new NotImplementedException();
     }
 
-    [HttpDelete]
-    public ActionResult DeleteChat(int chatId)
+    [Authorize]
+    [HttpGet("GetChats")]
+    public async Task<ActionResult<List<ChatBasicModel>>> GetChatsAsync()
     {
-        if (chatId == 0)
+        var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (ownerUserId == null || !int.TryParse(ownerUserId, out var ownerId))
         {
-            return BadRequest();
+            return Unauthorized("invalid or missing user identifier");
         }
 
-        throw new NotImplementedException();
+        return await _chatService.GetChatsAsync(ownerId);
     }
 }

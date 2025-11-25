@@ -1,10 +1,12 @@
 using AutoMapper;
+
 using Messenger.Dtos;
 using Messenger.Dtos.UserDtos;
 using Messenger.Service.Exceptions;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
 using Messenger.Service.Models.Enums;
+
 using Microsoft.AspNetCore.Mvc;
 
 namespace Messenger.Controllers;
@@ -23,16 +25,14 @@ public class AuthController : Controller
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult> Register([FromBody]RegisterRequest request)
+    public async Task<ActionResult> Register([FromBody] RegisterRequest request)
     {
-        if(!ModelState.IsValid)
-            return BadRequest(ModelState);
         try
         {
             var authModel = _mapper.Map<UserAuthRegisterModel>(request);
             authModel.Role = UserRole.Client;
             var userModel = _mapper.Map<UserModel>(request);
-            if(!await _authService.RegisterAsync(authModel, userModel))
+            if (!await _authService.RegisterAsync(authModel, userModel))
             {
                 return BadRequest("не удалось зарегистрировать пользователя");
             }
@@ -57,7 +57,7 @@ public class AuthController : Controller
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<TokenResponseModel>> Login([FromBody]UserAuthDto request)
+    public async Task<ActionResult<TokenResponseModel>> Login([FromBody] UserAuthDto request)
     {
         try
         {
@@ -67,11 +67,11 @@ public class AuthController : Controller
         }
         catch (UserNotFoundException)
         {
-            return Conflict();
+            return NotFound();
         }
         catch (UserLoginException)
         {
-            return Conflict();
+            return BadRequest();
         }
     }
 
@@ -79,7 +79,7 @@ public class AuthController : Controller
     public async Task<ActionResult<TokenResponseModel>> RefreshToken([FromBody] RefreshTokenRequestModel request)
     {
         var result = await _authService.RefreshTokenAsync(request);
-        if(result?.AccessToken is null || result?.RefreshToken is null)
+        if (result?.AccessToken is null || result?.RefreshToken is null)
             return Unauthorized("Invalid token");
         return Ok(result);
     }

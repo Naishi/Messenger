@@ -1,4 +1,5 @@
 ﻿using Messenger.Domain.Entities;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Messenger.Domain.Data;
@@ -16,18 +17,18 @@ public class DataContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        
+
         modelBuilder.Entity<ContactEntity>()
             .HasOne(c => c.OwnerUser)
             .WithMany(u => u.Contacts)
             .HasForeignKey(c => c.OwnerUserId)
-            .OnDelete(DeleteBehavior.Cascade); // не удалять контакты при удалении юзера
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<ContactEntity>()
             .HasOne(c => c.ContactUser)
             .WithMany(u => u.AddedBy)
             .HasForeignKey(c => c.ContactUserId)
             .OnDelete(DeleteBehavior.Cascade);
-        
+
         modelBuilder.Entity<MessageEntity>()
             .HasKey(m => m.Id);
         modelBuilder.Entity<MessageEntity>()
@@ -40,8 +41,8 @@ public class DataContext : DbContext
             .WithMany(c => c.Messages)
             .HasForeignKey(m => m.ChatId)
             .OnDelete(DeleteBehavior.Cascade);
-        
-        
+
+
         modelBuilder.Entity<UserChatEntity>()
             .HasKey(uce => uce.Id);
         modelBuilder.Entity<UserChatEntity>()
@@ -53,6 +54,6 @@ public class DataContext : DbContext
             .HasOne(uce => uce.Chat)
             .WithMany(c => c.UserChats)
             .HasForeignKey(uce => uce.ChatId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

@@ -6,7 +6,7 @@ public class UserAuthEntity
 {
     public int Id { get; set; }
     [MaxLength(64)]
-    public string Email {  get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
     [MaxLength(512)]
     public string PasswordHash { get; set; } = string.Empty;
     [MaxLength(32)]

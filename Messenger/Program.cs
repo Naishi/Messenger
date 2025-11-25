@@ -1,15 +1,20 @@
 using System.Text;
+
 using Messenger;
 using Messenger.Domain;
+using Messenger.Domain.Interfaces;
+using Messenger.Domain.Repositories;
 using Messenger.Service;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Services;
 using Messenger.Service.Settings;
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using Scalar.AspNetCore;
 using Microsoft.OpenApi.Models;
+
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +35,7 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         In = ParameterLocation.Header,
-        Description = "Ââåäèòå òîêåí â ñëåäóþùåì ôîðìàòå: Bearer {âàø òîêåí}",
+        Description = "Введите токен в следующем формате: Bearer {ваш токен}",
         Name = "Authorization",
         Type = SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
@@ -70,6 +75,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IChatRepository, ChatRepository>();
 
 var app = builder.Build();
 

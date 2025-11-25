@@ -1,9 +1,13 @@
+using System.Security.Claims;
+
 using AutoMapper;
+
 using Messenger.Domain;
 using Messenger.Dtos.UserDtos;
 using Messenger.Service.Exceptions;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -92,7 +96,7 @@ public class UserController : Controller
             {
                 if (!int.TryParse(request.UserId, out var id) && id > 0)
                 {
-                    BadRequest("Invalid Id");
+                    return BadRequest("Invalid Id");
                 }
 
                 searchType = SearchType.Id;
@@ -123,7 +127,59 @@ public class UserController : Controller
         {
             return BadRequest("dont use profanity text");
         }
-        catch (EmptyStringChangesException)
+        catch (EmptyStringsException)
+        {
+            return BadRequest();
+        }
+    }
+
+    [Authorize]
+    [HttpPost("add-contact")]
+    public async Task<ActionResult> AddContact([FromBody] AddContactDto request)
+    {
+        try
+        {
+            var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (ownerUserId == null)
+                return BadRequest("Invalid user id");
+
+            if (!int.TryParse(ownerUserId, out var ownerUserIdInt))
+                return BadRequest("Invalid owner user id");
+            await _userService.AddContactAsync(ownerUserIdInt, request.ContactId, request.DisplayName);
+            return Ok();
+        }
+        catch (InvalidIdException)
+        {
+            return BadRequest("Need valid id");
+        }
+        catch (EmptyStringsException)
+        {
+            return BadRequest("Need valid Id or Name");
+        }
+        catch (UserNotFoundException)
+        {
+            return NotFound("One or More Users were not found");
+        }
+        catch (ExistedUserException)
+        {
+            return BadRequest("Existed contact");
+        }
+    }
+
+    [Authorize]
+    [HttpDelete("delete-contact")]
+    public async Task<ActionResult> DeleteContact([FromQuery] int contactId)
+    {
+        try
+        {
+            var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (ownerUserId == null) return BadRequest("Invalid user id");
+            if (!int.TryParse(ownerUserId, out var ownerUserIdInt))
+                return BadRequest("Invalid owner user id");
+            await _userService.DeleteContactAsync(ownerUserIdInt, contactId);
+            return Ok();
+        }
+        catch (InvalidIdException)
         {
             return BadRequest();
         }

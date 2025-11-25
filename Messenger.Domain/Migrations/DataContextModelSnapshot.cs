@@ -158,9 +158,6 @@ namespace Messenger.Migrations
                     b.Property<int>("ChatId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("CompanionId")
-                        .HasColumnType("integer");
-
                     b.Property<bool>("IsPinned")
                         .HasColumnType("boolean");
 
@@ -170,8 +167,6 @@ namespace Messenger.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ChatId");
-
-                    b.HasIndex("CompanionId");
 
                     b.HasIndex("UserId");
 
@@ -255,12 +250,6 @@ namespace Messenger.Migrations
                     b.HasOne("Messenger.Domain.Entities.ChatEntity", "Chat")
                         .WithMany("UserChats")
                         .HasForeignKey("ChatId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Messenger.Domain.Entities.UserEntity", "Companion")
-                        .WithMany()
-                        .HasForeignKey("CompanionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -271,8 +260,6 @@ namespace Messenger.Migrations
                         .IsRequired();
 
                     b.Navigation("Chat");
-
-                    b.Navigation("Companion");
 
                     b.Navigation("User");
                 });

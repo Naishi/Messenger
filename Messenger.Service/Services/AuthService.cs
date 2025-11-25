@@ -1,4 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+
 using AutoMapper;
+
 using Messenger.Domain.Entities;
 using Messenger.Domain.Interfaces;
 using Messenger.Service.Exceptions;
@@ -6,12 +12,9 @@ using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
 using Messenger.Service.Models.Enums;
 using Messenger.Service.Settings;
+
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace Messenger.Service.Services;
 
@@ -34,7 +37,7 @@ public class AuthService : IAuthService
         _jwtSettings = jwtSettings;
         _emailValidator = emailValidator;
     }
-    
+
 
     public async Task<bool> RegisterAsync(UserAuthRegisterModel authModel, UserModel userModel)
     {
@@ -42,7 +45,7 @@ public class AuthService : IAuthService
         {
             throw new InvalidEmailException();
         }
-        
+
         if (authModel.Role == UserRole.None)
         {
             throw new UndefinedUserRoleException();
@@ -60,10 +63,10 @@ public class AuthService : IAuthService
 
         var authEntity = _mapper.Map<UserAuthEntity>(authModel);
         authEntity.PasswordHash = _passwordHasher.HashPassword(authEntity, authModel.Password);
-        
+
         var userEntity = _mapper.Map<UserEntity>(userModel);
 
-        return await _userAuthRepository.RegisterUserAsync(authEntity,userEntity);
+        return await _userAuthRepository.RegisterUserAsync(authEntity, userEntity);
     }
 
     public async Task<TokenResponseModel?> LoginAsync(UserAuthLoginModel model)
@@ -80,11 +83,11 @@ public class AuthService : IAuthService
         {
             throw new UserLoginException();
         }
-        
+
         return await CreateTokenResponse(entity);
     }
 
-    private async Task<TokenResponseModel> CreateTokenResponse( UserAuthEntity entity)
+    private async Task<TokenResponseModel> CreateTokenResponse(UserAuthEntity entity)
     {
         var response = new TokenResponseModel()
         {
@@ -97,7 +100,7 @@ public class AuthService : IAuthService
     public async Task<TokenResponseModel?> RefreshTokenAsync(RefreshTokenRequestModel model)
     {
         var user = await ValidateRefreshTokenAsync(model);
-        if(user is null)
+        if (user is null)
             return null;
         return await CreateTokenResponse(user);
     }
@@ -117,6 +120,7 @@ public class AuthService : IAuthService
     {
         var claims = new List<Claim>
         {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role.ToString())
         };
@@ -146,8 +150,8 @@ public class AuthService : IAuthService
     private async Task<string> GenerateAndSaveRefreshToken(UserAuthEntity userAuth)
     {
         var refreshToken = GenerateRefreshToken();
-        
-        userAuth!.RefreshToken = refreshToken;
+
+        userAuth.RefreshToken = refreshToken;
         userAuth.RefreshTokenExpiryTime = DateTime.UtcNow.AddHours(1);
         await _userAuthRepository.SaveRefreshTokenAsync();
         return refreshToken;

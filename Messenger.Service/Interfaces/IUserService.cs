@@ -10,4 +10,6 @@ public interface IUserService
     Task<UserModel?> FindUserAsync(string searchRequest, SearchType searchType);
     Task UpdateUserAsync(UserModel userEntity, string searchRequest, SearchType searchType);
     Task<List<UserModel>?> GetUsersAsync();
+    Task AddContactAsync(int ownerUserId, int contactUserId, string displayName);
+    Task DeleteContactAsync(int ownerId, int contactId);
 }

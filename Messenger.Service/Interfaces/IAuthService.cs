@@ -6,5 +6,5 @@ public interface IAuthService
 {
     Task<bool> RegisterAsync(UserAuthRegisterModel authModel, UserModel user);
     Task<TokenResponseModel?> LoginAsync(UserAuthLoginModel model);
-    Task<TokenResponseModel?> RefreshTokenAsync (RefreshTokenRequestModel model);
+    Task<TokenResponseModel?> RefreshTokenAsync(RefreshTokenRequestModel model);
 }

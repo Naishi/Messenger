@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net.Mail;
+
 using DnsClient;
+
 using Messenger.Service.Interfaces;
 
 namespace Messenger.Service;
@@ -19,10 +21,10 @@ public class EmailValidator : IEmailValidator
             return false;
         }
     }
-    
+
     public async Task<bool> IsEmailDomainValidAsync(string email)
     {
-        if(string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
             return false;
         var domain = email.Substring(email.IndexOf('@') + 1);
 
@@ -40,11 +42,11 @@ public class EmailValidator : IEmailValidator
 
     public async Task<bool> IsEmailValidAndExistAsync(string email)
     {
-        if(!IsEmailSyntaxValid(email))
+        if (!IsEmailSyntaxValid(email))
             return false;
-        if(!await IsEmailDomainValidAsync(email))
+        if (!await IsEmailDomainValidAsync(email))
             return false;
-        
+
         return true;
     }
 }

@@ -1,6 +1,7 @@
 using Messenger.Domain.Data;
 using Messenger.Domain.Interfaces;
 using Messenger.Domain.Repositories;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
@@ -12,10 +13,11 @@ public static class DomainServicesExtension
 {
     public static void AddDomainServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddTransient<ChatRepository>();
-        services.AddTransient<IUserRepository, UserRepository>();
-        services.AddTransient<IUserAuthRepository, UserAuthRepository>();
-        
+        services.AddScoped<IChatRepository, ChatRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserAuthRepository, UserAuthRepository>();
+        services.AddScoped<IUserChatRepository, UserChatRepository>();
+
 
         services.AddDbContext<DataContext>(options =>
         {
