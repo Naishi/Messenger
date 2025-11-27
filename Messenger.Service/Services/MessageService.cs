@@ -46,7 +46,7 @@ public class MessageService : IMessageService
 
     public async Task ModifyMessageAsync(int messageId, string text, int userId)
     {
-        if (messageId is > 0 && !string.IsNullOrWhiteSpace(text))
+        if (messageId <= 0 || string.IsNullOrWhiteSpace(text))
         {
             throw new MessageModifyException();
         }
@@ -56,7 +56,14 @@ public class MessageService : IMessageService
 
     public async Task<List<MessageModel>> GetAllMessagesAsync(int userId, int chatId)
     {
-        return new List<MessageModel>();
+         var messagesList = await _messageRepository.GetAllMessageAsync(chatId, userId);
+         return _mapper.Map<List<MessageModel>>(messagesList);
+    }
+
+    public async Task<MessageModel> GetMessageAsync(int messageId, int userId)
+    {
+        var message = await _messageRepository.GetMessageByIdAsync(messageId, userId);
+        return _mapper.Map<MessageModel>(message);
     }
 
 }

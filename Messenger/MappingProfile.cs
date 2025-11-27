@@ -1,5 +1,6 @@
 using AutoMapper;
 
+using Messenger.Domain.Entities;
 using Messenger.Dtos;
 using Messenger.Dtos.ChatDtos;
 using Messenger.Dtos.MessageDtos;

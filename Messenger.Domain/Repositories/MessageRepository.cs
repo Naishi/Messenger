@@ -57,9 +57,13 @@ public class MessageRepository : IMessageRepository
     {
         var messageEntity = await _context.Messages.FindAsync(messageId);
 
-        if (messageEntity != null && messageEntity.ChatId == messageId && messageEntity.UserId == userId)
+        if (messageEntity != null && messageEntity.UserId == userId)
         {
             messageEntity.Text = text;
+        }
+        else
+        {
+            throw new DbUpdateException();
         }
 
         await _context.SaveChangesAsync();
@@ -68,14 +72,19 @@ public class MessageRepository : IMessageRepository
     public async Task<List<MessageEntity>> GetAllMessageAsync(int chatId, int userId)
     {
         return await _context.Messages
-            .Where(m => m.ChatId == chatId && m.UserId == userId)
+            .Where(m => m.ChatId == chatId)
             .ToListAsync();
     }
 
-    public async Task<MessageEntity?> GetMessageAsync(int messageId)
+    public async Task<MessageEntity?> GetMessageByIdAsync(int messageId, int userId)
     {
         var message = await _context.Messages.FindAsync(messageId);
 
-        return message ?? null;
+        if (message != null && message.UserId == userId)
+        {
+            return message;
+        }
+
+        return null;
     }
 }

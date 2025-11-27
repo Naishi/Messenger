@@ -10,5 +10,8 @@ public interface IMessageService
 
     Task ModifyMessageAsync(int messageId, string text, int userId);
 
+    
     Task<List<MessageModel>> GetAllMessagesAsync(int userId, int chatId);
+
+    Task<MessageModel> GetMessageAsync(int messageId, int userId);
 }

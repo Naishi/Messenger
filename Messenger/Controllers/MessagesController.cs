@@ -28,29 +28,43 @@ public class MessagesController : Controller
     /// <summary>
     /// 
     /// </summary>
-    [HttpGet]
-    public ActionResult<List<GetMessageOutDto>> GetAllMessageInChat([FromQuery] int chatId)
+    
+    [Authorize]
+    [HttpGet ("getMessagesListInChat")]
+    public async Task<ActionResult<List<GetMessageOutDto>>> GetAllMessagesInChatAsync([FromQuery] int chatId)
     {
-        throw new NotImplementedException();
+        var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(user, out var userId))
+        {
+            return BadRequest();
+        }
+        else
+        {
+            return Ok(await _messageService.GetAllMessagesAsync(userId, chatId));
+        }
     }
 
     /// <summary>
     /// 
     /// </summary>
-    [HttpGet("search")]
-    public ActionResult<List<GetMessageOutDto>> GetMessageInChat([FromQuery] int userChatId, [FromQuery] string text)
+    [HttpGet("getMessageById")]
+    public async Task<ActionResult<MessageModel>> GetMessageInChatById([FromQuery]  int messageId)
     {
-        throw new NotImplementedException();
-    }
+        var user =  User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    [HttpGet("fullsearch")]
-    public ActionResult<List<GetMessageOutDto>> GetMessageInAllChats([FromHeader] int userId, [FromQuery] string text)
-    {
-        throw new NotImplementedException();
+        if (!int.TryParse(user, out var userId))
+        {
+            return BadRequest();
+        }
+        else
+        {
+            return Ok(await _messageService.GetMessageAsync(messageId, userId));
+        }
     }
 
     [Authorize]
-    [HttpPost]
+    [HttpPost("createMessage")]
     public async Task<ActionResult> CreateMessageAsync([FromBody] CreateMessageDto createMessage)
     {
         var user =  User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -76,15 +90,35 @@ public class MessagesController : Controller
         }
     }
 
-    [HttpPatch]
-    public ActionResult ModifyMessage(ModifyMessageDto modifyMessage)
+    [Authorize]
+    [HttpPatch("modifyMessage")]
+    public async Task<ActionResult> ModifyMessageAsync(ModifyMessageDto modifyMessage)
     {
-        throw new NotImplementedException();
+        var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(user, out var userId))
+        {
+            return BadRequest();
+        }
+
+        await _messageService.ModifyMessageAsync(modifyMessage.MessageId, modifyMessage.Text, userId);
+        return Ok();
+
     }
 
-    [HttpDelete]
-    public ActionResult DeleteMessage(int chatId)
+    [HttpDelete ("deleteMessage")]
+    public async Task<ActionResult> DeleteMessage(int messageId)
     {
-        throw new NotImplementedException();
+        var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!int.TryParse(user, out var userId))
+        {
+            return BadRequest();
+        }
+        else
+        {
+            await _messageService.RemoveMessageAsync(messageId, userId);
+            return Ok();
+        }
     }
 }
