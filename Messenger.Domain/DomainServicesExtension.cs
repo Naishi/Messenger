@@ -18,12 +18,12 @@ public static class DomainServicesExtension
         services.AddScoped<IUserAuthRepository, UserAuthRepository>();
         services.AddScoped<IUserChatRepository, UserChatRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
-
+        services.AddScoped<IContactRepository, ContactRepository>();
 
         services.AddDbContext<DataContext>(options =>
         {
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection"))
-            .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ExecutionStrategyRetrying));
+                .ConfigureWarnings(warnings => warnings.Ignore(CoreEventId.ExecutionStrategyRetrying));
         });
     }
 }

@@ -1,12 +1,9 @@
 ﻿using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 
 namespace Messenger.Domain.Interfaces
 {
-    public interface IUserAuthRepository
+    public interface IUserAuthRepository : IBaseRepository<UserAuthEntity, AuthFilter>
     {
-        Task<UserAuthEntity?> GetUserAsync(string email);
-        Task<UserAuthEntity?> GetUserAsync(int id);
-        Task<bool> RegisterUserAsync(UserAuthEntity userAuth, UserEntity user);
-        Task SaveRefreshTokenAsync();
     }
 }

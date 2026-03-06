@@ -1,16 +1,8 @@
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 
 namespace Messenger.Domain.Interfaces;
 
-public interface IMessageRepository
+public interface IMessageRepository : IBaseRepository<MessageEntity, MessageFilter>
 {
-    Task CreateMessageAsync(MessageEntity message, int userId);
-
-    Task RemoveMessageAsync(int messageId, int userId);
-
-    Task ModifyMessageAsync(int messageId, string text, int userId);
-
-    Task<List<MessageEntity>> GetAllMessageAsync(int chatId, int userId);
-
-    Task<MessageEntity?> GetMessageByIdAsync(int messageId, int userId);
 }

@@ -1,14 +1,10 @@
 ﻿using System.Security.Claims;
-
 using AutoMapper;
-
-using Messenger.Domain.Interfaces;
 using Messenger.Dtos.MessageDtos;
+using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
 using Messenger.Service.Services;
-
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Messenger.Controllers;
@@ -18,19 +14,16 @@ namespace Messenger.Controllers;
 public class MessagesController : Controller
 {
     private readonly IMessageService _messageService;
-    private readonly IMapper  _mapper;
+    private readonly IMapper _mapper;
 
     public MessagesController(IMessageService messageService, IMapper mapper)
     {
         _messageService = messageService;
         _mapper = mapper;
     }
-    /// <summary>
-    /// 
-    /// </summary>
-    
+
     [Authorize]
-    [HttpGet ("getMessagesListInChat")]
+    [HttpGet("getMessagesListInChat")]
     public async Task<ActionResult<List<GetMessageOutDto>>> GetAllMessagesInChatAsync([FromQuery] int chatId)
     {
         var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -44,14 +37,11 @@ public class MessagesController : Controller
             return Ok(await _messageService.GetAllMessagesAsync(userId, chatId));
         }
     }
-
-    /// <summary>
-    /// 
-    /// </summary>
+    
     [HttpGet("getMessageById")]
-    public async Task<ActionResult<MessageModel>> GetMessageInChatById([FromQuery]  int messageId)
+    public async Task<ActionResult<MessageModel>> GetMessageInChatById([FromQuery] int messageId)
     {
-        var user =  User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (!int.TryParse(user, out var userId))
         {
@@ -67,14 +57,14 @@ public class MessagesController : Controller
     [HttpPost("createMessage")]
     public async Task<ActionResult> CreateMessageAsync([FromBody] CreateMessageDto createMessage)
     {
-        var user =  User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (createMessage.Text.Length > 256 || createMessage.Text == string.Empty)
         {
             return BadRequest();
         }
 
-        if ( int.TryParse(user, out var userId))
+        if (int.TryParse(user, out var userId))
         {
             var messageModel = _mapper.Map<MessageModel>(createMessage);
             messageModel.UserId = userId;
@@ -102,11 +92,11 @@ public class MessagesController : Controller
         }
 
         await _messageService.ModifyMessageAsync(modifyMessage.MessageId, modifyMessage.Text, userId);
-        return Ok();
 
+        return Ok();
     }
 
-    [HttpDelete ("deleteMessage")]
+    [HttpDelete("deleteMessage")]
     public async Task<ActionResult> DeleteMessage(int messageId)
     {
         var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -118,6 +108,7 @@ public class MessagesController : Controller
         else
         {
             await _messageService.RemoveMessageAsync(messageId, userId);
+
             return Ok();
         }
     }

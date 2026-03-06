@@ -1,57 +1,29 @@
 using Messenger.Domain.Data;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 using Messenger.Domain.Interfaces;
 
 using Microsoft.EntityFrameworkCore;
 
 namespace Messenger.Domain.Repositories;
 
-public class UserAuthRepository : IUserAuthRepository
+public class UserAuthRepository : BaseRepository<UserAuthEntity, AuthFilter>, IUserAuthRepository
 {
-    private readonly DataContext _context;
-    private readonly IUserRepository _userRepository;
+    public UserAuthRepository(DataContext context) : base(context) { }
 
-    public UserAuthRepository(DataContext context, IUserRepository userRepository)
+    protected override IQueryable<UserAuthEntity> ApplyFilter(IQueryable<UserAuthEntity> query, AuthFilter filter)
     {
-        _context = context;
-        _userRepository = userRepository;
-    }
+        var result = query;
 
-    public async Task<UserAuthEntity?> GetUserAsync(string email)
-    {
-        return await _context.UserAuth.FirstOrDefaultAsync(u => u.Email == email);
-    }
-
-    public async Task<UserAuthEntity?> GetUserAsync(int id)
-    {
-        return await _context.UserAuth.FindAsync(id);
-    }
-
-    public async Task<bool> RegisterUserAsync(UserAuthEntity userAuth, UserEntity user)
-    {
-        if (await _context.UserAuth.AnyAsync(u => u.Email == userAuth.Email)
-            || !await IsNickUniqueAsync(user.NickName)) return false;
-        await _context.UserAuth.AddAsync(userAuth);
-        if (!await _userRepository.AddUserAsync(user))
+        if (filter.Id != null)
         {
-            return false;
+            result = result.Where(a => a.Id == filter.Id);
         }
-        await _context.SaveChangesAsync();
-        return true;
-    }
 
-    private async Task<bool> IsNickUniqueAsync(string nickName)
-    {
-        if (string.IsNullOrWhiteSpace(nickName))
+        if (!string.IsNullOrWhiteSpace(filter.Search))
         {
-            return true;
+            result = result.Where(a => a.Email ==  filter.Search);
         }
-        var exist = await _context.Users.AnyAsync(u => u.NickName == nickName);
-        return !exist;
-    }
-
-    public async Task SaveRefreshTokenAsync()
-    {
-        await _context.SaveChangesAsync();
+        return result;
     }
 }

@@ -1,11 +1,10 @@
 using AutoMapper;
-
-using Messenger.Domain.Dto;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 using Messenger.Domain.Interfaces;
 using Messenger.Service.Exceptions;
+using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
-using System.Linq;
 
 namespace Messenger.Service.Services;
 
@@ -13,20 +12,21 @@ public class ChatService : IChatService
 {
     private readonly IChatRepository _chatRepository;
     private readonly IMapper _mapper;
-    private readonly IUserChatRepository _userChatRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IContactRepository _contactRepository;
 
     public ChatService(
         IChatRepository chatRepository,
         IMapper mapper,
-        IUserChatRepository userChatRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IContactRepository contactRepository)
     {
         _chatRepository = chatRepository;
         _mapper = mapper;
-        _userChatRepository = userChatRepository;
         _userRepository = userRepository;
+        _contactRepository = contactRepository;
     }
+
     public async Task AddChatAsync(ChatModel newChat, List<int> userIds)
     {
         if (userIds.Distinct().Count() != 2)
@@ -34,32 +34,42 @@ public class ChatService : IChatService
             throw new ArgumentException("Ids must be distinct");
         }
 
-        var thisUser = await _userRepository.FindUserByIdAsync(userIds[0]);
-        var user2 = await _userRepository.FindUserByIdAsync(userIds[1]);
+        UserFilter userFilter = new()
+        {
+            UserIds = [userIds[0], userIds[1]]
+        };
+        var users = await _userRepository.GetAsync(userFilter);
+        var thisUser = users[0];
+        var user2 = users[1];
 
         if (thisUser == null || user2 == null)
         {
             throw new UserNotFoundException();
         }
 
-        if (await _userChatRepository.CheckExistingChatAsync(userIds[0], userIds[1]))
+        ChatFilter chatFilter = new()
+        {
+            UserIds = [userIds[0], userIds[1]]
+        };
+        var chat = await _chatRepository.GetAsync(chatFilter);
+
+        if (chat.Count != 0)
         {
             throw new ExistedChatException();
         }
 
-        if (!await _userRepository.CheckContactThisUserExistAsync(userIds[0], userIds[1]))
+        ContactFilter contactFilter = new()
+        {
+            OwnerUserId = thisUser.Id, ContactUserId = user2.Id
+        };
+        var contact = await _contactRepository.GetAsync(contactFilter);
+
+        if (contact.Count == 0)
         {
             throw new ForbiddenOperationExceprion();
         }
 
-        var chatsThisUser = await _userChatRepository.GetChatsByUserIdAsync(userIds[0]);
-
-        if (chatsThisUser.Any(chat => chat.Name == newChat.Name))
-        {
-            throw new ChatNameExistedException();
-        }
-
-        var chatEntity = _mapper.Map<ChatEntity>(newChat);
+        var newChatEntity = _mapper.Map<ChatEntity>(newChat);
         UserChatEntity userChat1 = new()
         {
             UserId = userIds[0]
@@ -68,49 +78,66 @@ public class ChatService : IChatService
         {
             UserId = userIds[1]
         };
-        chatEntity.UserChats = new List<UserChatEntity>()
+        newChatEntity.UserChats = new List<UserChatEntity>()
         {
             userChat1, userChat2
-        };
+        }!;
 
-        chatEntity.Name = $"{thisUser.Name} and {user2.Name}";
-        userChat1.Chat = chatEntity;
-        userChat2.Chat = chatEntity;
+        newChatEntity.Name = $"{thisUser.Name} and {user2.Name}";
+        userChat1.Chat = newChatEntity;
+        userChat2.Chat = newChatEntity;
 
-        await _chatRepository.CreateChatAsync(chatEntity);
+        await _chatRepository.CreateAsync(newChatEntity);
     }
 
     public async Task DeleteChatAsync(int chatId, int ownerId)
     {
-        var chatEntity = await _chatRepository.GetChatAsync(chatId);
-        if (chatEntity == null)
+        var filter = new ChatFilter();
+        var chatEntities = await _chatRepository.GetAsync(filter);
+
+        if (chatEntities.Count == 0)
         {
             throw new ChatNotFoundException();
         }
 
-        var users = await _userChatRepository.GetUsersByChatIdAsync(chatId);
+        if (chatEntities.Count > 1)
+        {
+            throw new ChatNotFoundException("Multiple chats???");
+        }
 
-        if (users == null || users.All(u => u.Id != ownerId))
+        var userFilter = new UserFilter()
+        {
+            ChatId = chatId
+        };
+        
+        var users = await _userRepository.GetAsync(userFilter);
+
+        if (users.Count == 0 || users.All(u => u.Id != ownerId))
         {
             throw new UserNotFoundException();
         }
-        await _chatRepository.DeleteChatAsync(chatId);
+
+        await _chatRepository.DeleteAsync(chatEntities[0]);
     }
 
-    public async Task<List<SearchChatEntity>> SearchChatsByCriteriaAsync(string search, int currentUserId)
+    public async Task<List<ChatModel>> SearchChatsByCriteriaAsync(string search, int currentUserId)
     {
-        return await _chatRepository.SearchChatByCriteriaAsync(currentUserId, search);
-    }
-
-    public async Task<List<ChatBasicModel>> GetChatsAsync(int userId)
-    {
-        var userChats = await _chatRepository.GetAllChatsAsync(userId);
-        var resultList = userChats
-            .Select(uc => new ChatBasicModel
+        var chats = await _chatRepository.GetAsync(
+            new()
             {
-                ChatId = uc.ChatId, ChatName = uc.Chat.Name ?? "Deleted or unknown chat"
-            })
-            .ToList();
-        return resultList;
+                UserIds = [currentUserId], Search = search
+            });
+        
+        return _mapper.Map<List<ChatModel>>(chats);
+    }
+
+    public async Task<List<ChatModel>> GetChatsAsync(int userId)
+    {
+        var chats = await _chatRepository.GetAsync(new()
+        {
+            UserIds = [userId]
+        });
+
+        return _mapper.Map<List<ChatModel>>(chats);
     }
 }

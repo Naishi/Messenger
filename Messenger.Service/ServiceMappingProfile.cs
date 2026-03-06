@@ -1,7 +1,4 @@
-using System.Security;
-
 using AutoMapper;
-
 using Messenger.Domain.Entities;
 using Messenger.Service.Models;
 

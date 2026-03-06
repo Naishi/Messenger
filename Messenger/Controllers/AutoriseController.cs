@@ -32,10 +32,9 @@ public class AuthController : Controller
             var authModel = _mapper.Map<UserAuthRegisterModel>(request);
             authModel.Role = UserRole.Client;
             var userModel = _mapper.Map<UserModel>(request);
-            if (!await _authService.RegisterAsync(authModel, userModel))
-            {
-                return BadRequest("не удалось зарегистрировать пользователя");
-            }
+
+            await _authService.RegisterAsync(authModel, userModel);
+
             return Created();
         }
         catch (UndefinedUserRoleException)
@@ -63,6 +62,7 @@ public class AuthController : Controller
         {
             var model = _mapper.Map<UserAuthLoginModel>(request);
             var tokenResponseModel = await _authService.LoginAsync(model);
+
             return Ok(tokenResponseModel);
         }
         catch (UserNotFoundException)
@@ -79,8 +79,10 @@ public class AuthController : Controller
     public async Task<ActionResult<TokenResponseModel>> RefreshToken([FromBody] RefreshTokenRequestModel request)
     {
         var result = await _authService.RefreshTokenAsync(request);
+
         if (result?.AccessToken is null || result?.RefreshToken is null)
             return Unauthorized("Invalid token");
+
         return Ok(result);
     }
 }

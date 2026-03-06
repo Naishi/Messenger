@@ -1,7 +1,6 @@
-using Messenger.Domain.Dto;
 using Messenger.Service.Models;
 
-namespace Messenger.Service.Services;
+namespace Messenger.Service.Interfaces;
 
 public interface IChatService
 {
@@ -9,7 +8,7 @@ public interface IChatService
 
     Task DeleteChatAsync(int chatId, int ownerId);
 
-    Task<List<SearchChatEntity>> SearchChatsByCriteriaAsync(string search, int currentUserId);
+    Task<List<ChatModel>> SearchChatsByCriteriaAsync(string search, int currentUserId);
 
-    Task<List<ChatBasicModel>> GetChatsAsync(int userId);
+    Task<List<ChatModel>> GetChatsAsync(int userId);
 }

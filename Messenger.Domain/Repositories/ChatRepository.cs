@@ -1,110 +1,48 @@
-﻿using System.ComponentModel;
-
-using Messenger.Domain.Data;
+﻿using Messenger.Domain.Data;
 using Messenger.Domain.Dto;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 using Messenger.Domain.Interfaces;
 
 using Microsoft.EntityFrameworkCore;
 
 namespace Messenger.Domain.Repositories;
 
-public class ChatRepository : IChatRepository
+public class ChatRepository : BaseRepository<ChatEntity, ChatFilter>, IChatRepository
 {
-    private readonly DataContext _context;
-
-    public ChatRepository(DataContext context)
+    public ChatRepository(DataContext context) :  base(context) { }
+    
+    protected override IQueryable<ChatEntity> ApplyFilter(IQueryable<ChatEntity> query, ChatFilter filter)
     {
-        _context = context;
-    }
+        var result = query;
 
-    public async Task CreateChatAsync(ChatEntity chat)
-    {
-        await _context.Chats.AddAsync(chat);
-        await _context.UserChats.AddRangeAsync(chat.UserChats);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task UpdateChatAsync(ChatEntity chat)
-    {
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task DeleteChatAsync(int id)
-    {
-        var chat = await _context.Chats.FindAsync(id);
-
-        if (chat != null)
+        if (filter.ChatIds != null && filter.ChatIds.Any())
         {
-            _context.Chats.Remove(chat);
+            result = result.Where(c => filter.ChatIds.Contains(c.Id));
         }
 
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<ChatEntity?> GetChatAsync(int id)
-    {
-        var find = await _context.Chats.FindAsync(id);
-
-        return find ?? null;
-    }
-
-    public async Task<List<UserChatEntity>> GetAllChatsAsync(int userId)
-    {
-        return await _context.UserChats
-            .Where(uc => uc.UserId == userId)
-            .Include(uc => uc.Chat)
-            .ToListAsync();
-    }
-
-    public async Task<List<SearchChatEntity>> SearchChatByCriteriaAsync(int currentUserId, string searchTerm)
-    {
-        var term = searchTerm.ToLower();
-
-        var results = await _context.UserChats
-            .Where(uc => uc.UserId == currentUserId)
-            .Select(uc => new
-            {
-                BaseChat = uc.Chat,
-                Interlocutor = uc.Chat.UserChats
-                    .FirstOrDefault(otherUc => otherUc.UserId != currentUserId)
-            })
-            .Select(temp1 => new
-            {
-                BaseChat = temp1.BaseChat,
-                InterlocutorUser = temp1.Interlocutor!.User,
-                CustomContact = _context.Contacts
-                    .FirstOrDefault(c =>
-                        c.OwnerUserId == currentUserId && c.ContactUserId == temp1.Interlocutor.UserId)
-            })
-            .Where(temp2 =>
-                (temp2.CustomContact != null
-                    && temp2.CustomContact.DisplayName != null
-                    && temp2.CustomContact.DisplayName.ToLower().Contains(term))
-                || temp2.InterlocutorUser.Name.ToLower().Contains(term)
-                || temp2.InterlocutorUser.NickName != null && temp2.InterlocutorUser.NickName.ToLower().Contains(term))
-            .Select(finalData => new SearchChatEntity
-            {
-                Id = finalData.BaseChat.Id,
-                CreatedDate = finalData.BaseChat.CreatedDate,
-                DisplayName = finalData.CustomContact!.DisplayName
-                    ?? finalData.InterlocutorUser.NickName
-                    ?? finalData.InterlocutorUser.Name,
-            })
-            .ToListAsync();
-
-        return results;
-    }
-
-    public async Task UpdateLastMessageTime(int chatId)
-    {
-        var  chat = await _context.Chats.FindAsync(chatId);
-
-        if (chat != null)
+        if (filter.UserIds != null && filter.UserIds.Any())
         {
-            chat.LastMessageDate = DateTime.UtcNow;
+            result = result.Where(chat => chat.UserChats.Any(uc => filter.UserIds.Contains(uc.UserId)));
         }
-        
-        await _context.SaveChangesAsync();
+
+        // поиск по имени контакта 
+        if (filter.UserIds is { Count: > 0 } && !string.IsNullOrWhiteSpace(filter.Search))
+        {
+            result = result.Where(chat =>
+                chat.UserChats.Any(ucOwner =>
+                    filter.UserIds.Contains(ucOwner.UserId) && 
+                    chat.UserChats.Any(ucOther =>
+                        ucOther.UserId != ucOwner.UserId && 
+                        ucOwner.User.Contacts.Any(contact =>
+                                contact.ContactUserId == ucOther.UserId &&
+                                contact.DisplayName != null &&
+                                contact.DisplayName.Contains(filter.Search)
+                        )
+                    )
+                )
+            );
+        }
+        return result;
     }
 }

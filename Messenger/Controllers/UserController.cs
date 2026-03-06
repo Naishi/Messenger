@@ -1,13 +1,10 @@
 using System.Security.Claims;
-
 using AutoMapper;
-
 using Messenger.Domain;
 using Messenger.Dtos.UserDtos;
 using Messenger.Service.Exceptions;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,17 +32,13 @@ public class UserController : Controller
 
         SearchType searchType;
 
-        if (int.TryParse(searchRequest, out var id) && id > 0)
-        {
-            searchType = SearchType.Id;
-        }
-        else if (searchRequest.Contains('@'))
+        if (searchRequest.Contains('@'))
         {
             searchType = SearchType.Email;
         }
         else
         {
-            searchType = SearchType.Nickname;
+            searchType = SearchType.NickName;
         }
 
         var user = await _userService.FindUserAsync(searchRequest, searchType);
@@ -53,16 +46,8 @@ public class UserController : Controller
         if (user == null)
             return NotFound();
         var userInfo = _mapper.Map<UserInfoDto>(user);
-        return Ok(userInfo);
-    }
 
-    [Authorize(Roles = "Admin")]
-    [HttpGet("users")]
-    public async Task<ActionResult<UserInfoDto>> GetUsers()
-    {
-        var users = await _userService.GetUsersAsync();
-        var usersInfo = _mapper.Map<IList<UserInfoDto>>(users);
-        return Ok(usersInfo);
+        return Ok(userInfo);
     }
 
     [Authorize(Roles = "Admin")]
@@ -72,6 +57,7 @@ public class UserController : Controller
         try
         {
             await _userService.DeleteUserAsync(email);
+
             return Ok("Was Deleted");
         }
         catch (InvalidEmailException)
@@ -90,36 +76,18 @@ public class UserController : Controller
     {
         try
         {
-            string searchRequest;
-            SearchType searchType;
-            if (!string.IsNullOrWhiteSpace(request.UserId))
-            {
-                if (!int.TryParse(request.UserId, out var id) && id > 0)
-                {
-                    return BadRequest("Invalid Id");
-                }
+            var user = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                searchType = SearchType.Id;
-                searchRequest = request.UserId;
-            }
-            else if (!string.IsNullOrWhiteSpace(request.Email) && request.Email.Contains('@'))
+            if (!int.TryParse(user, out var id))
             {
-                searchType = SearchType.Email;
-                searchRequest = request.Email;
-            }
-            else if (!string.IsNullOrWhiteSpace(request.NickName))
-            {
-                searchType = SearchType.Nickname;
-                searchRequest = request.NickName;
-            }
-            else
-            {
-                return BadRequest("Enter id or email or nickname for changing");
+                return BadRequest();
             }
 
             var userModel = _mapper.Map<UserModel>(request);
+            userModel.Id = id;
 
-            await _userService.UpdateUserAsync(userModel, searchRequest, searchType);
+            await _userService.UpdateUserAsync(userModel);
+
             return Ok("Was Updated");
         }
 
@@ -140,12 +108,14 @@ public class UserController : Controller
         try
         {
             var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (ownerUserId == null)
                 return BadRequest("Invalid user id");
 
             if (!int.TryParse(ownerUserId, out var ownerUserIdInt))
                 return BadRequest("Invalid owner user id");
             await _userService.AddContactAsync(ownerUserIdInt, request.ContactId, request.DisplayName);
+
             return Ok();
         }
         catch (InvalidIdException)
@@ -173,10 +143,13 @@ public class UserController : Controller
         try
         {
             var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (ownerUserId == null) return BadRequest("Invalid user id");
+
+            if (ownerUserId == null)
+                return BadRequest("Invalid user id");
             if (!int.TryParse(ownerUserId, out var ownerUserIdInt))
                 return BadRequest("Invalid owner user id");
             await _userService.DeleteContactAsync(ownerUserIdInt, contactId);
+
             return Ok();
         }
         catch (InvalidIdException)

@@ -1,10 +1,8 @@
 ﻿using System.Security.Claims;
-
 using Messenger.Dtos.ChatDtos;
 using Messenger.Service.Exceptions;
+using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
-using Messenger.Service.Services;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -30,8 +28,7 @@ public class ChatsController : Controller
             var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var chatModel = new ChatModel()
             {
-                Name = createChat.ChatName,
-                CreatedDate = DateOnly.FromDateTime(DateTime.Today)
+                Name = createChat.ChatName, CreatedDate = DateOnly.FromDateTime(DateTime.Today)
             };
 
             if (string.IsNullOrWhiteSpace(ownerUserId) || !int.TryParse(ownerUserId, out var ownerId))
@@ -69,10 +66,10 @@ public class ChatsController : Controller
             return Conflict();
         }
     }
-    
+
     [Authorize]
     [HttpGet("Search")]
-    //уточнение должно быть сравнение по совпадениям через базу
+    
     public ActionResult SearchChat([FromQuery] string contactName)
     {
         throw new NotImplementedException();
@@ -93,14 +90,15 @@ public class ChatsController : Controller
             return Unauthorized("invalid or missing user identifier");
         }
     }
-    
+
     [Authorize]
     [HttpDelete("DeleteChat")]
-    public async Task<ActionResult> DeleteChat(int chatId)
+    public async Task<ActionResult> DeleteChat([FromQuery]int chatId)
     {
         try
         {
             var ownerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
             if (chatId <= 0)
             {
                 return BadRequest();
@@ -109,8 +107,10 @@ public class ChatsController : Controller
             if (int.TryParse(ownerUserId, out var ownerId))
             {
                 await _chatService.DeleteChatAsync(chatId, ownerId);
+
                 return Ok("Chat deleted successfully");
-            } 
+            }
+
             return Unauthorized();
         }
         catch (ChatNotFoundException)
@@ -134,6 +134,6 @@ public class ChatsController : Controller
             return Unauthorized("invalid or missing user identifier");
         }
 
-        return await _chatService.GetChatsAsync(ownerId);
+        return Ok(await _chatService.GetChatsAsync(ownerId));
     }
 }

@@ -6,18 +6,23 @@ namespace Messenger.Domain.Data;
 
 public class DataContext : DbContext
 {
-    public DataContext(DbContextOptions<DataContext> options) : base(options) { }
+    public DataContext(DbContextOptions<DataContext> options)
+        : base(options) { }
 
     public DbSet<ChatEntity> Chats { get; set; }
+
     public DbSet<UserEntity> Users { get; set; }
+
     public DbSet<UserChatEntity> UserChats { get; set; }
+
     public DbSet<UserAuthEntity> UserAuth { get; set; }
+
     public DbSet<ContactEntity> Contacts { get; set; }
+
     public DbSet<MessageEntity> Messages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-
         modelBuilder.Entity<ContactEntity>()
             .HasOne(c => c.OwnerUser)
             .WithMany(u => u.Contacts)
@@ -41,8 +46,6 @@ public class DataContext : DbContext
             .WithMany(c => c.Messages)
             .HasForeignKey(m => m.ChatId)
             .OnDelete(DeleteBehavior.Cascade);
-
-
         modelBuilder.Entity<UserChatEntity>()
             .HasKey(uce => uce.Id);
         modelBuilder.Entity<UserChatEntity>()
@@ -55,5 +58,12 @@ public class DataContext : DbContext
             .WithMany(c => c.UserChats)
             .HasForeignKey(uce => uce.ChatId)
             .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<UserAuthEntity>()
+            .HasIndex(userAuth => userAuth.Email)
+            .IsUnique();
+        modelBuilder.Entity<UserEntity>()
+            .HasIndex(user => user.NickName)
+            .IsUnique();
+            
     }
 }

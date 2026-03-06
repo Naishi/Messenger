@@ -2,7 +2,7 @@ namespace Messenger.Domain;
 
 public enum SearchType
 {
-    Id,
+    None = 0,
     Email,
-    Nickname
+    NickName
 }

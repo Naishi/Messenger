@@ -1,90 +1,42 @@
 using Messenger.Domain.Data;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 using Messenger.Domain.Interfaces;
 
 using Microsoft.EntityFrameworkCore;
 
 namespace Messenger.Domain.Repositories;
 
-public class MessageRepository : IMessageRepository
+public class MessageRepository : BaseRepository<MessageEntity, MessageFilter>, IMessageRepository
 {
-    private readonly DataContext _context;
-    private readonly IChatRepository _chatRepository;
-    private readonly IUserChatRepository _userChatRepository;
+    public MessageRepository(DataContext context) : base(context) { }
 
-    public MessageRepository(
-        DataContext context,
-        IChatRepository chatRepository,
-        IUserChatRepository userChatRepository)
+    protected override IQueryable<MessageEntity> ApplyFilter(IQueryable<MessageEntity> query, MessageFilter filter)
     {
-        _context = context;
-        _chatRepository = chatRepository;
-        _userChatRepository = userChatRepository;
-    }
+        var result = query;
 
-    public async Task CreateMessageAsync(MessageEntity message, int userId)
-    {
-        var usersId =  _context.UserChats.Where(uc => uc.ChatId == message.ChatId).Select(uc => uc.UserId);
-        var user = await _context.Users.FindAsync(userId);
-        if (usersId.Any(u => u == userId) && user != null)
+        if (filter is { ChatId: not null, UserId: not null })
         {
-            message.AuthorName = user.NickName ?? user.Name;
-            await _context.Messages.AddAsync(message);
-            await _chatRepository.UpdateLastMessageTime(message.ChatId);
+            result = result.Where(message => message.Chat.UserChats
+                .Any(uc => uc.ChatId == filter.ChatId
+                    && uc.UserId == filter.UserId));
         }
 
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task RemoveMessageAsync(int messageId, int userId)
-    {
-        var message = await _context.Messages.FindAsync(messageId);
-
-        if (message != null)
+        if (filter.MessageId is not null)
         {
-            var userList = await _userChatRepository.GetUsersByChatIdAsync(message.ChatId);
-
-            if (userList != null && userId > 0 && userList.Any(u => u.Id == userId))
-            {
-                _context.Messages.Remove(message);
-            }
+            result = result.Where(message => message.Id == filter.MessageId);
         }
 
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task ModifyMessageAsync(int messageId, string text, int userId)
-    {
-        var messageEntity = await _context.Messages.FindAsync(messageId);
-
-        if (messageEntity != null && messageEntity.UserId == userId)
+        if (filter.UserId is not null)
         {
-            messageEntity.Text = text;
-        }
-        else
-        {
-            throw new DbUpdateException();
+            result = result.Where(message => message.Chat.UserChats.Any(uc => uc.UserId == filter.UserId));
         }
 
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<List<MessageEntity>> GetAllMessageAsync(int chatId, int userId)
-    {
-        return await _context.Messages
-            .Where(m => m.ChatId == chatId)
-            .ToListAsync();
-    }
-
-    public async Task<MessageEntity?> GetMessageByIdAsync(int messageId, int userId)
-    {
-        var message = await _context.Messages.FindAsync(messageId);
-
-        if (message != null && message.UserId == userId)
+        if (!string.IsNullOrWhiteSpace(filter.MessageText) && filter.UserId is not null)
         {
-            return message;
+            result = result.Where(message => message.Text.Contains(filter.MessageText));
         }
 
-        return null;
+        return result;
     }
 }

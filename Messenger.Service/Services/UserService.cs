@@ -1,12 +1,11 @@
 using AutoMapper;
-
 using Messenger.Domain;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
 using Messenger.Domain.Interfaces;
 using Messenger.Service.Exceptions;
 using Messenger.Service.Interfaces;
 using Messenger.Service.Models;
-
 using ProfanityFilter.Interfaces;
 
 namespace Messenger.Service.Services;
@@ -17,57 +16,85 @@ public class UserService : IUserService
     private readonly IEmailValidator _emailValidator;
     private readonly IMapper _mapper;
     private readonly IProfanityFilter _profanityFilter;
+    private readonly IContactRepository _contactRepository;
 
-    public UserService(IUserRepository userRepository, IEmailValidator emailValidator,
-        IMapper mapper, IProfanityFilter profanityFilter)
+    public UserService(
+        IUserRepository userRepository,
+        IEmailValidator emailValidator,
+        IMapper mapper,
+        IProfanityFilter profanityFilter,
+        IContactRepository contactRepository)
     {
         _userRepository = userRepository;
         _emailValidator = emailValidator;
         _mapper = mapper;
         _profanityFilter = profanityFilter;
+        _contactRepository = contactRepository;
     }
 
     public async Task DeleteUserAsync(string userEmail)
     {
         if (!_emailValidator.IsEmailSyntaxValid(userEmail))
+        {
             throw new InvalidEmailException();
+        }
 
-        if (!await _userRepository.DeleteUserAsync(userEmail))
+        var user = await _userRepository.GetAsync(
+            new UserFilter()
+            {
+                Search = userEmail
+            });
+
+        if (user.Count == 0)
+        {
             throw new UserNotFoundException();
+        }
+
+        await _userRepository.DeleteAsync(user[0]);
     }
 
     public async Task<UserModel?> FindUserAsync(string searchRequest, SearchType searchType)
     {
-        var userEntity = await _userRepository.FindUserByCriteriaAsync(searchRequest, searchType);
-        if (userEntity == null)
+        var userEntity = await _userRepository.GetAsync(new UserFilter()
+        {
+            Search = searchRequest,
+            SearchType = searchType
+        });
+
+        if (userEntity.Count == 0)
+        {
             return null;
+        }
+        
         var userModel = _mapper.Map<UserModel>(userEntity);
+
         return userModel;
     }
 
-    public async Task UpdateUserAsync(UserModel userModel, string searchRequest, SearchType searchType)
+    public async Task UpdateUserAsync(UserModel userModel)
     {
-        var userEntity = await _userRepository.FindUserByCriteriaAsync(searchRequest, searchType);
-        if (userEntity == null)
-            throw new UserNotFoundException();
+        var userEntity = await _userRepository.GetAsync(new UserFilter()
+        {
+            UserIds = [userModel.Id]
+        });
 
-        if (!string.IsNullOrWhiteSpace(userModel.Name))
-            userEntity.Name = userModel.Name;
-        else
+        if (userEntity.Count == 0)
+        {
+            throw new UserNotFoundException();
+        }
+
+        if (string.IsNullOrEmpty(userModel.Name)
+            && string.IsNullOrEmpty(userModel.NickName)
+            && string.IsNullOrEmpty(userModel.Description))
         {
             throw new EmptyStringsException();
         }
-        if (!string.IsNullOrWhiteSpace(userModel.NickName))
-            userEntity.NickName = userModel.NickName;
-        else
+
+        if (userEntity[0].Name == userModel.Name
+            && userEntity[0].NickName == userModel.NickName
+            && userEntity[0].Description == userModel.Description)
         {
-            throw new EmptyStringsException();
-        }
-        if (!string.IsNullOrWhiteSpace(userModel.Description))
-            userEntity.Description = userModel.Description;
-        else
-        {
-            throw new EmptyStringsException();
+            throw new EmptyStringsException("don't have changes");
         }
 
         if (_profanityFilter.ContainsProfanity(userModel.Description)
@@ -77,54 +104,105 @@ public class UserService : IUserService
             throw new ProfanityExistException();
         }
 
-        await _userRepository.UpdateUserInfoAsync();
-    }
-
-    public async Task<List<UserModel>?> GetUsersAsync()
-    {
-        var userList = await _userRepository.GetUsersAsync();
-        if (userList == null)
-            return null;
-        return _mapper.Map<List<UserModel>>(userList);
+        var modifiedUserEntity =  _mapper.Map<UserEntity>(userModel);
+        await _userRepository.UpdateAsync(modifiedUserEntity);
     }
 
     public async Task AddContactAsync(int ownerUserId, int contactUserId, string displayName)
     {
-        var ownerUserEntity = await _userRepository.FindUserByIdAsync(ownerUserId);
-        var contactUserEntity = await _userRepository.FindUserByIdAsync(contactUserId);
+        var userEntities = await _userRepository.GetAsync(
+            new()
+            {
+                UserIds = [ownerUserId, contactUserId]
+            });
+
+        UserEntity ownerUserEntity, contactUserEntity;
+        
+        if (userEntities.Count == 2
+            && userEntities[0].Id == ownerUserId)
+        {
+            ownerUserEntity = userEntities[0];
+            contactUserEntity = userEntities[1];
+        }
+        else
+        {
+            ownerUserEntity = userEntities[1];
+            contactUserEntity = userEntities[0];
+        }
+
         if (contactUserEntity == null || ownerUserId == contactUserId)
+        {
             throw new UserNotFoundException();
+        }
 
         var ownerContactEntity = new ContactEntity
         {
-            OwnerUserId = ownerUserId,
-            ContactUserId = contactUserId,
-            DisplayName = displayName
+            OwnerUserId = ownerUserId, ContactUserId = contactUserId, DisplayName = displayName
         };
+        
         var contactContactEntity = new ContactEntity
         {
             OwnerUserId = contactUserId,
             ContactUserId = ownerUserId,
             DisplayName = ownerUserEntity.NickName ?? ownerUserEntity.Name
         };
-        var checkContact = await _userRepository.FindContactByIdAsync(ownerUserId, contactUserId);
-        if (checkContact != null)
-            throw new ExistedUserException();
+        
+        var checkContact = await _contactRepository.GetAsync(
+            new()
+            {
+                OwnerUserId = ownerUserId, ContactUserId = contactUserId
+            });
 
-        await _userRepository.AddContactAsync(ownerContactEntity);
-        await _userRepository.AddContactAsync(contactContactEntity);
+        if (checkContact != null)
+        {
+            throw new ExistedUserException();
+        }
+
+        await using var transaction = await _contactRepository.BeginTransactionAsync();
+
+        try
+        {
+            await _contactRepository.CreateAsync(ownerContactEntity);
+            await _contactRepository.CreateAsync(contactContactEntity);
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task DeleteContactAsync(int ownerId, int contactId)
     {
-        var contactEntity = await _userRepository.GetContactAsync(contactId);
-        var ownerContactEntity = await _userRepository.FindUserByIdAsync(ownerId);
-        if (contactEntity == null || ownerContactEntity == null)
+        var contactEntities = await _contactRepository.GetAsync(
+            new()
+            {
+                OwnerUserId = ownerId, ContactUserId = contactId
+            });
+
+        if (contactEntities.Count == 0)
+        {
             throw new UserNotFoundException();
+        }
 
-        if (!await _userRepository.RoleCheckAsync(ownerContactEntity) || contactEntity.OwnerUserId != ownerId)
+        if (contactEntities.Any(c => c.OwnerUserId == ownerId || c.OwnerUserId == contactId))
+        {
             throw new ImproperUserException();
-
-        await _userRepository.DeleteContactAsync(contactEntity);
+        }
+        
+        await using var transaction = await _contactRepository.BeginTransactionAsync();
+        
+        try
+        {
+            await _contactRepository.DeleteAsync(contactEntities[0]);
+            await _contactRepository.DeleteAsync(contactEntities[1]);
+            await transaction.CommitAsync();
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 }

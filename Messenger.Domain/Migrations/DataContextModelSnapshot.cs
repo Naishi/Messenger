@@ -58,6 +58,7 @@ namespace Messenger.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("DisplayName")
+                        .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
@@ -144,6 +145,9 @@ namespace Messenger.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Email")
+                        .IsUnique();
+
                     b.ToTable("UserAuth");
                 });
 
@@ -203,6 +207,9 @@ namespace Messenger.Migrations
                         .HasColumnType("character varying(64)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("NickName")
+                        .IsUnique();
 
                     b.ToTable("Users");
                 });
