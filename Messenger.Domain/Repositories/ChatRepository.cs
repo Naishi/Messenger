@@ -1,46 +1,48 @@
 ﻿using Messenger.Domain.Data;
+using Messenger.Domain.Dto;
 using Messenger.Domain.Entities;
+using Messenger.Domain.Filters;
+using Messenger.Domain.Interfaces;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace Messenger.Domain.Repositories;
 
-public class ChatRepository
+public class ChatRepository : BaseRepository<ChatEntity, ChatFilter>, IChatRepository
 {
-    private readonly DataContext _context;
-
-    public ChatRepository(DataContext context)
+    public ChatRepository(DataContext context) :  base(context) { }
+    
+    protected override IQueryable<ChatEntity> ApplyFilter(IQueryable<ChatEntity> query, ChatFilter filter)
     {
-        _context = context;
-    }
+        var result = query;
 
-    public void CreateChat(ChatEntity chat)
-    {
-        _context.Chats.Add(chat);
-        _context.SaveChanges();
-    }
-
-    public void UpdateChat(ChatEntity chat)
-    {
-        _context.Chats.Update(chat);
-        _context.SaveChanges();
-    }
-
-    public void DeleteChat(int id)
-    {
-        var chat = _context.Chats.Find(id);
-        if (chat != null)
+        if (filter.ChatIds != null && filter.ChatIds.Any())
         {
-            _context.Chats.Remove(chat);
+            result = result.Where(c => filter.ChatIds.Contains(c.Id));
         }
-        _context.SaveChanges();
-    }
 
-    public ChatEntity GetChat(int id)
-    {
-        return _context.Chats.Find(id);
-    }
+        if (filter.UserIds != null && filter.UserIds.Any())
+        {
+            result = result.Where(chat => chat.UserChats.Any(uc => filter.UserIds.Contains(uc.UserId)));
+        }
 
-    public List<ChatEntity> GetAllChats()
-    {
-        return _context.Chats.ToList();
+        // поиск по имени контакта 
+        if (filter.UserIds is { Count: > 0 } && !string.IsNullOrWhiteSpace(filter.Search))
+        {
+            result = result.Where(chat =>
+                chat.UserChats.Any(ucOwner =>
+                    filter.UserIds.Contains(ucOwner.UserId) && 
+                    chat.UserChats.Any(ucOther =>
+                        ucOther.UserId != ucOwner.UserId && 
+                        ucOwner.User.Contacts.Any(contact =>
+                                contact.ContactUserId == ucOther.UserId &&
+                                contact.DisplayName != null &&
+                                contact.DisplayName.Contains(filter.Search)
+                        )
+                    )
+                )
+            );
+        }
+        return result;
     }
 }

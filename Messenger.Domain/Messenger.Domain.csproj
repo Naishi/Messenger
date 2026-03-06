@@ -3,18 +3,19 @@
     <PropertyGroup>
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
-    </PropertyGroup>
+		<Nullable>enable</Nullable>
+		<UserSecretsId>5e616bb1-b6d9-47d3-8f4d-5f7ed229eaa6</UserSecretsId>
+	</PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="AutoMapper" Version="14.0.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.4"/>
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+        
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.6" />
+        <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="9.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.0" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     </ItemGroup>
-    <ItemGroup>
-      <ProjectReference Include="..\Messenger.Service\Messenger.Service.csproj" />
-    </ItemGroup>
-    
-    
 
 </Project>
